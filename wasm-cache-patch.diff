@@ -1,0 +1,69 @@
+diff --git a/js/public/WasmModule.h b/js/public/WasmModule.h
+--- a/js/public/WasmModule.h
++++ b/js/public/WasmModule.h
+@@ -36,11 +36,15 @@ struct WasmModule : js::AtomicRefCounted
+   virtual JSObject* createObject(JSContext* cx) const = 0;
+   virtual JSObject* createObjectForAsmJS(JSContext* cx) const = 0;
+ };
+ 
+ extern JS_PUBLIC_API bool IsWasmModuleObject(HandleObject obj);
+ 
+ extern JS_PUBLIC_API RefPtr<WasmModule> GetWasmModule(HandleObject obj);
+ 
++extern JS_PUBLIC_API JSObject* CompileAndSerializeWasmModule(JSContext* cx, HandleObject buf);
++
++extern JS_PUBLIC_API JSObject* DeserializeWasmModule(JSContext* cx, HandleObject buf);
++
+ }  // namespace JS
+ 
+ #endif /* js_WasmModule_h */
+diff --git a/js/src/jsapi.cpp b/js/src/jsapi.cpp
+--- a/js/src/jsapi.cpp
++++ b/js/src/jsapi.cpp
+@@ -5818,16 +5818,46 @@ bool JS::IsWasmModuleObject(HandleObject
+ }
+ 
+ JS_PUBLIC_API RefPtr<JS::WasmModule> JS::GetWasmModule(HandleObject obj) {
+   MOZ_ASSERT(JS::IsWasmModuleObject(obj));
+   WasmModuleObject& mobj = obj->unwrapAs<WasmModuleObject>();
+   return const_cast<wasm::Module*>(&mobj.module());
+ }
+ 
++JS_PUBLIC_API JSObject* JS::CompileAndSerializeWasmModule(JSContext* cx, HandleObject buf) {
++  auto& aobj = buf->as<ArrayBufferObject>();
++  size_t length = aobj.byteLength();
++  uint8_t* data = aobj.dataPointer();
++
++  wasm::MutableBytes bytecode = js_new<wasm::ShareableBytes>();
++
++  if (!bytecode->bytes.append(data, length)) {
++    return nullptr;
++  }
++
++  wasm::Bytes serialized;
++  if (!wasm::CompileAndSerialize(*bytecode, &serialized)) {
++    return nullptr;
++  }
++  size_t size = serialized.length();
++  return JS::NewArrayBufferWithContents(cx, size, serialized.extractOrCopyRawBuffer());
++}
++
++JS_PUBLIC_API JSObject* JS::DeserializeWasmModule(JSContext* cx, HandleObject buf) {
++  auto& aobj = buf->as<ArrayBufferObject>();
++  size_t length = aobj.byteLength();
++  uint8_t* data = aobj.dataPointer();
++  wasm::MutableModule module = wasm::Module::deserialize(data, length);
++  if (!module) {
++    return nullptr;
++  }
++  return module->createObject(cx);
++}
++
+ bool JS::DisableWasmHugeMemory() { return wasm::DisableHugeMemory(); }
+ 
+ JS_PUBLIC_API void JS::SetProcessLargeAllocationFailureCallback(
+     JS::LargeAllocationFailureCallback lafc) {
+   MOZ_ASSERT(!OnLargeAllocationFailure);
+   OnLargeAllocationFailure = lafc;
+ }
+ 
