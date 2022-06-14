@@ -98,6 +98,10 @@ ordinary JavaScript properties.
 
 ## Providing private data for objects ##
 
+CHANGE TO:
+
+JS::SetReservedSlot(....), GetMaybePtrFromReservedSlot
+
 Like contexts, you can associate large quantities of data with an object
 without having to store the data in the object itself.
 Call `JS_SetPrivate` to establish a pointer to private data for the

@@ -37,7 +37,7 @@ class ReplGlobal {
   ReplGlobal(void) : m_shouldQuit(false) {}
 
   static ReplGlobal* priv(JSObject* global) {
-    auto* retval = static_cast<ReplGlobal*>(JS::GetPrivate(global));
+    auto* retval = JS::GetMaybePtrFromReservedSlot<ReplGlobal>(global, 0);
     assert(retval);
     return retval;
   }
@@ -68,7 +68,7 @@ constexpr JSFunctionSpec ReplGlobal::functions[];
 
 /* The class of the global object. */
 const JSClass ReplGlobal::klass = {"ReplGlobal",
-                                   JSCLASS_GLOBAL_FLAGS | JSCLASS_HAS_PRIVATE,
+                                   JSCLASS_GLOBAL_FLAGS | JSCLASS_HAS_RESERVED_SLOTS(1),
                                    &JS::DefaultGlobalClassOps};
 
 std::string FormatString(JSContext* cx, JS::HandleString string) {
@@ -135,7 +135,7 @@ JSObject* ReplGlobal::create(JSContext* cx) {
                                              JS::FireOnNewGlobalHook, options));
 
   ReplGlobal* priv = new ReplGlobal();
-  JS::SetPrivate(global, priv);
+  JS::SetReservedSlot(global, 0, JS::PrivateValue(priv));
 
   // Define any extra global functions that we want in our environment.
   JSAutoRealm ar(cx, global);

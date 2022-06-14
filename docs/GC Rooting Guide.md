@@ -328,7 +328,7 @@ reserved slots, which are automatically traced by the GC.
 ```c++
 JSClass FooClass = {
     "FooPrototype",
-    JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1),
+    --JSCLASS_HAS_PRIVATE |-- JSCLASS_HAS_RESERVED_SLOTS(1),
     &FooClassOps
 };
 JS::RootedObject obj(cx, JS_NewObject(cx, &FooClass));
